@@ -1,32 +1,38 @@
 import queue
 import time
-import sounddevice as sd
 # import os
-import numpy as np
+# os.environ["SD_ENABLE_ASIO"] = "1"
 
-from sota_thinclient import SOTA_MIC_SAMPLERATE, SOTA_MIC_CHANNELS, SOTA_MIC_DATATYPE
+import sounddevice as sd
+import numpy as np
 from sota_thinclient import ConnectionManager
 
-SOTA_IP = "192.168.0.23"
+# SOTA_IP = "192.168.0.23"
+SOTA_IP = "10.151.63.71"
 HTTP_PORT = "8080"
 UDP_PORT = 52001
-# os.environ["SD_ENABLE_ASIO"] = "1"
+
 
 ###### A simple buffer reader that dumps to the default output audio device.
 ## This is the callback, the stream is initialized and started below
-class audioListener:
+class audioListener():
 
-    def __init__(self, queue):
-        self._leftover = np.empty((0, SOTA_MIC_CHANNELS), dtype=np.dtype(SOTA_MIC_DATATYPE))  # persistent across callbacks
+    def __init__(self, queue, mic_channels, sample_rate, sample_size_bits, buffersize_bytes):
         self._queue = queue
+        self._mic_channels = mic_channels
+        self._sample_rate = sample_rate
+
+        self._datatype = np.dtype(np.dtype(f'i{sample_size_bits // 8}'))
+        self._leftover = np.empty((0, mic_channels), dtype=self._datatype)  # persistent across callbacks
+        self._buffersize = buffersize_bytes
 
     def start(self):
         self._stream = sd.OutputStream(
-            samplerate=SOTA_MIC_SAMPLERATE,  # SAMPLE_RATE,
-            channels=SOTA_MIC_CHANNELS,
-            dtype=SOTA_MIC_DATATYPE,
+            samplerate=self._sample_rate,  # SAMPLE_RATE,
+            channels=self._mic_channels,
+            dtype=self._datatype.name,
             latency='low',
-            blocksize=256,  # this is number of frames. you can calculate how many ms latency are introduced here
+            blocksize=  (self._buffersize // self._mic_channels // self._datatype.itemsize),  # number of frames
             callback=self.audio_callback
         )
         self._stream.start()
@@ -44,7 +50,7 @@ class audioListener:
 
             if len(audio_array) == 0:  # nothing left over, get a new one.
                 packet = self._queue.get_nowait()
-                audio_array = np.frombuffer(packet, dtype=np.dtype(SOTA_MIC_DATATYPE)).reshape(-1, SOTA_MIC_CHANNELS)
+                audio_array = np.frombuffer(packet, dtype=self._datatype).reshape(-1, self._mic_channels)
 
             # Fill outdata (may need to truncate if frames < packet length)
             out_len = min(len(audio_array), len(outdata))
@@ -62,8 +68,13 @@ class audioListener:
 # our central sota connection manager
 sota = ConnectionManager(SOTA_IP, HTTP_PORT)
 sota.microphone.enable(data_udp_port=UDP_PORT, restart_if_enabled=True)  # tries to get the server to start the mic UDP stream
+mic_state = sota.microphone.get_state(use_cached=True)
 
-audio = audioListener(sota.microphone.data_queue)
+audio = audioListener(sota.microphone.data_queue,
+                      mic_state['channels'],
+                      mic_state['sampleRate'],
+                      mic_state['sampleSize_bits'],
+                      mic_state['bufferSize'])
 audio.start()
 
 time.sleep(3)

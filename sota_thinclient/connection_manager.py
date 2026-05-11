@@ -2,7 +2,6 @@ from sota_thinclient.http_audio_stream import HTTPAudioStream
 from sota_thinclient.http import HTTPManager
 from sota_thinclient.udp_stream import UDPStreamReceiver, UDPStreamSender
 
-
 class ConnectionManager:
 
     MIC_END_POINT = "/mic"

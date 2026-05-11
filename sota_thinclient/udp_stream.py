@@ -1,4 +1,4 @@
-# sota_thinclient/udp_stream.py
+# sota-thinclient/udp_stream.py
 import socket
 import struct
 import threading
@@ -106,7 +106,7 @@ class UDPStreamSender(UDPStream):
                 data = self._data_queue.get(block=True, timeout=0.2)  # block until data is available, timeout to enable shutdown
                 header = struct.pack(">i", self._packet_seq)  # 4-byte signed int, big-endian
                 data = header + data
-                print(f"sending: {self._address}, {self._port}. Data {len(data)}")
+                # print(f"sending: {self._address}, {self._port}. Data {len(data)}")
                 self._sock.sendto(data, (self._address, self._port))
                 self._packet_seq = (self._packet_seq + 1) % UDP_SEQUENCE_MAX
 
