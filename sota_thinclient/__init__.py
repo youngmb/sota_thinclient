@@ -11,5 +11,10 @@ SOTA_MIC_SAMPLERATE = 16000   # must match what the server sends
 SOTA_MIC_CHANNELS = 1   # mono
 SOTA_MIC_DATATYPE = 'int16'
 
+# Sota speaker
+SOTA_SPK_SAMPLERATE = 16000   # must match what the server sends
+SOTA_SPK_CHANNELS = 1   # mono
+SOTA_SPK_DATATYPE = 'int16'
+
 # simplify the main imports
 from .connection_manager import ConnectionManager
