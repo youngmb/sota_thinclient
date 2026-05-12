@@ -68,6 +68,8 @@ class audioListener():
 # our central sota connection manager
 sota = ConnectionManager(SOTA_IP, HTTP_PORT)
 sota.microphone.enable(data_udp_port=UDP_PORT, restart_if_enabled=True)  # tries to get the server to start the mic UDP stream
+# sota.microphone.enable(data_udp_port=UDP_PORT, request_buffer_size=640, restart_if_enabled=True)  # tries to get the server to start the mic UDP stream
+# sota.microphone.enable(data_udp_port=UDP_PORT, request_buffer_size=16, restart_if_enabled=True)  # tries to get the server to start the mic UDP stream
 mic_state = sota.microphone.get_state(use_cached=True)
 
 audio = audioListener(sota.microphone.data_queue,

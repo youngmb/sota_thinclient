@@ -36,13 +36,9 @@ def get_resampled_audio_data(wav_file, target_channels, target_samplerate, targe
 
     return resampled_audio.tobytes()
 
-
-
-
 # our central sota connection manager
 sota = ConnectionManager(SOTA_IP, HTTP_PORT)
 sota.speaker.enable(data_udp_port=UDP_PORT, restart_if_enabled=True) # tries to get the server to start listening for our speaker UDP stream
-
 speaker_state = sota.speaker.get_state()
 
 data = get_resampled_audio_data(WAV_FILE,

@@ -7,6 +7,7 @@ class HTTPAudioStream:
     _FIELD_VOLUME = "volume"
     _FIELD_PORT = "streamPort"
     _FIELD_IP = "streamIP"
+    _FIELD_BUFFERSIZE = "bufferSize"
 
     def __init__(self, http_manager, end_point, udp_stream, error_print=True):
         self._http = http_manager
@@ -31,18 +32,23 @@ class HTTPAudioStream:
         self._state = post_payload  # save most recent state
         return True
 
-    def enable(self, data_udp_port, restart_if_enabled=True) -> bool:
+    def enable(self, data_udp_port, restart_if_enabled=True,
+               request_buffer_size : int =None) -> bool:
 
         ## Ask Sota to turn on the mic streaming, pointed at us.
         payload = self.get_state()
         if payload is None: return False
+
+        need_buffersize_change = ( (request_buffer_size is not None) and
+                                   (int(payload[self._FIELD_BUFFERSIZE] or 0) != request_buffer_size))
 
         if self._FIELD_ENABLED not in payload:
             if self._error_print: print(f"Field '{self._FIELD_ENABLED}' not found for enabling endpoint '{self._end_point}'.")
             return False
 
         if payload[self._FIELD_ENABLED]:  # already enabled
-            if not restart_if_enabled: return True
+
+            if (not restart_if_enabled) and (not need_buffersize_change): return True
 
             # try to disable first
             if not self.disable():
@@ -54,6 +60,7 @@ class HTTPAudioStream:
         # enabling needs to set the enabled flag, and provide a UDP port to send out to
         payload[self._FIELD_ENABLED] = True
         payload[self._FIELD_PORT] = data_udp_port
+        if need_buffersize_change: payload[self._FIELD_BUFFERSIZE] = request_buffer_size
         payload.pop(self._FIELD_IP)  # no IP tells it to use our, the requestor's, IP
         return self._post_state(payload)
 
