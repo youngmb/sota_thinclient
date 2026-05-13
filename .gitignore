@@ -12,3 +12,4 @@ build/
 **/.vosk/
 **/savedWorkspaces/*.json
 .idea/
+sota_thinclient.egg-info/
