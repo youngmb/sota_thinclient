@@ -5,7 +5,7 @@ import threading
 import heapq
 from queue import Empty
 
-from . import udp_timeout, reorder_window, UDP_SEQUENCE_MAX
+from . import udp_timeout, reorder_window, UDP_SEQUENCE_MAX, image_age_max
 
 class UDPStream:
     def __init__(self, address):
@@ -94,6 +94,89 @@ class UDPStreamReceiver (UDPStream):
             heapq.heappop(self._priority_queue)
             if self._priority_queue: (seq_num, payload) = self._priority_queue[0]
             self._expected_seq = (self._expected_seq + 1) % UDP_SEQUENCE_MAX
+
+
+class UDPStreamChunkedReceiver (UDPStream):
+
+    class ImageBuffer:### Helper class to manage image buffers that arrive piecewise
+        def __init__(self, part_count):
+            self.total = part_count
+            self.parts = {}
+
+        def add(self, part_num, data):
+            self.parts[part_num] = data
+
+        def is_complete(self):
+            return len(self.parts) == self.total
+
+        def compile(self):
+            if not self.is_complete(): return None
+            return b"".join(self.parts[i] for i in range(self.total))
+
+
+    def __init__(self, address):
+        super().__init__(address)
+
+        # we need to keep a very small priority queue to manage reordering out of order UDP packets
+        self._expected_seq = None
+        self._priority_queue = []
+        self._reorder_window = None
+        self._image_age_max = image_age_max
+        self._images = {}
+
+    def start(self, port, data_queue):
+        self._reorder_window = reorder_window
+        super().start(port, data_queue)
+        self._sock.bind((self._address, port))
+
+    def _run_loop(self):
+        while self._running:
+            data = None
+            try:
+                data, addr = self._sock.recvfrom(65536)
+
+            except socket.timeout: # ignore, just block again. Wakes from timout
+                pass
+
+            except Exception as e:
+                print(f"UDP receive error: {e}")
+
+            if data is not None:
+
+                # packet_data: bytes object, first 4 bytes = seq_num
+                seq_num, piece_num, piece_count = struct.unpack_from(">ihh", data, 0)
+
+                if self._expected_seq is None: self._expected_seq = seq_num  # initial seq_num init
+                payload = memoryview(data)[8:]  # zero-copy. 8 byte header
+
+                # if self.seq_distance(seq_num, self._expected_seq) > self._image_age_max:  #we've been waiting too long, purge old
+                if self.seq_ahead(seq_num, self._expected_seq + self._image_age_max):
+                    self._expected_seq = (seq_num - self._image_age_max) % UDP_SEQUENCE_MAX
+                    images = { k: v
+                               for k, v in self._images.items()
+                               if self.seq_ahead_or_equal(k, self._expected_seq ) }
+
+                    self._images = images
+
+                if seq_num not in self._images:  # create image if new
+                    self._images[seq_num] = self.ImageBuffer(piece_count)
+
+                self._images.get(seq_num).add(piece_num, payload)
+
+                img = self._images.get(self._expected_seq)
+                while img and img.is_complete():
+                    self._data_queue.put(self._images[self._expected_seq].compile(), block=True)
+                    del self._images[self._expected_seq]
+                    self._expected_seq = (self._expected_seq + 1) % UDP_SEQUENCE_MAX
+                    img = self._images[self._expected_seq]
+
+    @staticmethod
+    def seq_ahead(ahead_of_a, a):
+        return 0 < (ahead_of_a - a) % UDP_SEQUENCE_MAX < (UDP_SEQUENCE_MAX // 2)
+
+    @staticmethod
+    def seq_ahead_or_equal(ahead_of_a, a):
+        return 0 <= (ahead_of_a - a) % UDP_SEQUENCE_MAX < (UDP_SEQUENCE_MAX // 2)
 
 class UDPStreamSender(UDPStream):
     def __init__(self,address):
