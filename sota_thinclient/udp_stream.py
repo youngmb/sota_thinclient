@@ -174,7 +174,7 @@ class UDPStreamChunkedReceiver (UDPStream):
                 # check if cur sequence is too far ahead, get rid of old
                 threshold = (self._expected_seq + self._image_age_max) % UDP_SEQUENCE_MAX
                 if self.seq_ahead(seq_num, threshold):
-                    print("pruning old incomplete images older than "+str(threshold))
+                    if self._debug_print: ("pruning old incomplete images older than "+str(threshold))
                     self._expected_seq = (seq_num - self._image_age_max) % UDP_SEQUENCE_MAX  # move expected ahead
                     images = { k: v    #re-pack images, dropping old ones
                                for k, v in self._images.items()
@@ -196,7 +196,7 @@ class UDPStreamChunkedReceiver (UDPStream):
 
                 img = self._images.get(self._expected_seq)
                 while img and img.is_complete():
-                    print("complete frame received: "+str(self._expected_seq))
+                    if self._debug_print: ("complete frame received: "+str(self._expected_seq))
                     self._data_queue.put(self._images[self._expected_seq].compile(), block=True)
                     del self._images[self._expected_seq]
                     self._expected_seq = (self._expected_seq + 1) % UDP_SEQUENCE_MAX
