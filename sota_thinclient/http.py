@@ -53,7 +53,7 @@ class HTTPConnector:   #an abstract base class that holds basic functions for ot
         self._error_print = error_print
         self._state_cached = {}  # will be the state. empty means we don't have it
 
-    def _get_state(self, endpoint,
+    def _get_state(self, endpoint="",
                    use_cached=False) -> dict | None:  # cached gets local copy if we have one instead of getting new
         if use_cached and self._state_cached:
             return self._state_cached
@@ -61,14 +61,14 @@ class HTTPConnector:   #an abstract base class that holds basic functions for ot
         self._state_cached = self._http.get_as_json(self._end_point_path + endpoint)
         return self._state_cached
 
-    def _post_state(self, payload, endpoint) -> bool:
+    def _post_state(self, payload, endpoint="") -> bool:
         post_payload = self._http.post_dict_as_json(self._end_point_path + endpoint, payload)
         if post_payload is None: return False
 
         self._state_cached = post_payload  # save most recent state
         return True
 
-    def _set_capability_enabled(self, endpoint, field, enabled: bool) -> bool:
+    def _set_capability_enabled(self, field : str, enabled: bool, endpoint = "", restart_if_enabled=True, additional_fields : dict | None = None) -> bool:
         payload = self._get_state(endpoint)    #we need this to check if its already enabled
         if payload is None: return False
 
@@ -78,7 +78,18 @@ class HTTPConnector:   #an abstract base class that holds basic functions for ot
             return False
 
         if field_data == enabled:  # already enabled or disabled
-            return True
+            if not restart_if_enabled:
+                return True
+
+            # try to disable first
+            if not self.disable():
+                if self._error_print: print(
+                    f"Error disabling '{field}' before enabling endpoint '{self._end_point_path}'.")
+                return False
 
         payload[field] = enabled
+        if additional_fields: payload |= additional_fields
         return self._post_state(payload, endpoint)
+
+    def disable(self):
+        pass

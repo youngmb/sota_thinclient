@@ -7,10 +7,10 @@ import sounddevice as sd
 import numpy as np
 from sota_thinclient import ConnectionManager
 
-# SOTA_IP = "192.168.0.23"
-SOTA_IP = "10.151.63.71"
+SOTA_IP = "192.168.0.23"
+# SOTA_IP = "10.151.63.71"
 HTTP_PORT = "8080"
-UDP_PORT = 52001
+UDP_PORT = 52002
 
 
 ###### A simple buffer reader that dumps to the default output audio device.

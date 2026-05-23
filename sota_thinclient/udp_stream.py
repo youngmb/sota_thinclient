@@ -41,6 +41,8 @@ class UDPStream:
         pass
 
 class UDPStreamReceiver (UDPStream):
+    _HEADER_SIZE = 4
+
     def __init__(self, address):
         super().__init__(address)
 
@@ -66,13 +68,13 @@ class UDPStreamReceiver (UDPStream):
             except Exception as e:
                 print(f"UDP receive error: {e}")
 
-            if data is not None:
+            if data is not None and len(data) > self._HEADER_SIZE:
 
                 # packet_data: bytes object, first 4 bytes = seq_num
                 seq_num = struct.unpack_from(">i", data, 0)[0]
                 if self._expected_seq is None: self._expected_seq = seq_num  # initial seq_num init
 
-                payload = memoryview(data)[4:]  # zero-copy
+                payload = memoryview(data)[self._HEADER_SIZE:]  # zero-copy
                 self._queue_in_order( (seq_num, payload))
 
     def _queue_in_order(self, packet):
