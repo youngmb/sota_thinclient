@@ -2,7 +2,7 @@ from sota_thinclient.http_audio_stream import HTTPAudioStream
 from sota_thinclient.http_video_stream import HTTPVideoStream
 from sota_thinclient.pose import PoseManager
 from sota_thinclient.http import HTTPManager
-from sota_thinclient.udp_stream import UDPStreamReceiver, UDPStreamSender
+from sota_thinclient.udp_stream import UDPStreamReceiver, UDPStreamSender, UDPStreamChunkedReceiver
 
 class ConnectionManager:
 
@@ -18,5 +18,4 @@ class ConnectionManager:
         self.microphone = HTTPAudioStream(self.http, self.MIC_END_POINT, UDPStreamReceiver("0.0.0.0"))
         self.speaker = HTTPAudioStream(self.http, self.SPEAKER_END_POINT, UDPStreamSender(host))
         self.pose = PoseManager(self.http, self.POSE_END_POINT)
-        self.camera = HTTPVideoStream(self.http, self.VIDEO_END_POINT, UDPStreamReceiver("0.0.0.0"))
-
+        self.video = HTTPVideoStream(self.http, self.VIDEO_END_POINT, UDPStreamChunkedReceiver("0.0.0.0"))

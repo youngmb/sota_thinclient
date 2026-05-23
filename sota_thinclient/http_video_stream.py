@@ -14,6 +14,8 @@ class HTTPVideoStream:
     _FIELD_SUPPORTED_SIZES = "supportedSizes"
     _FIELD_SUPPORTED_FORMATS = "supportedFormats"
 
+    _CAPABILITIES_SUBPATH = "/capabilities"
+
     def __init__(self, http_manager, end_point, udp_stream, error_print=True):
         self._http = http_manager
         self._end_point = end_point
@@ -29,6 +31,9 @@ class HTTPVideoStream:
 
         self._state = self._http.get_as_json(self._end_point)
         return self._state
+
+    def get_capabilities(self):
+        return self._http.get_as_json(self._end_point+self._CAPABILITIES_SUBPATH)
 
     def _post_state(self, payload) -> bool:
         post_payload = self._http.post_dict_as_json(self._end_point, payload)
