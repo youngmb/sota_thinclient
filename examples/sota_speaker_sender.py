@@ -6,8 +6,8 @@ from scipy.signal import resample #for audio resampling -- install for example o
 
 from sota_thinclient import ConnectionManager
 
-# SOTA_IP = "192.168.0.23"
-SOTA_IP = "10.151.63.71"
+SOTA_IP = "192.168.0.23"
+# SOTA_IP = "10.151.63.71"
 HTTP_PORT = "8080"
 UDP_PORT = 52002
 WAV_FILE = "sample.wav"
@@ -67,6 +67,25 @@ for i in range(0, len(data), buffer_size):
 
 print(sota.speaker.get_state())
 
-input()  # pause until keypress
+
+sample_rate = speaker_state['sampleRate']
+channels = speaker_state['channels']
+sample_size_bytes = speaker_state['sampleSize_bits'] // 8
+
+frame_size = channels * sample_size_bytes
+buffer_size = speaker_state['bufferSize']
+
+start_time = time.perf_counter()
+
+for i in range(0, len(data), buffer_size):
+    chunk = data[i:i+buffer_size]
+    sota.speaker.data_queue.put(chunk, block=False)
+
+    frame_index = i / frame_size
+    target_time = start_time + (frame_index / sample_rate)
+
+    remaining = target_time - time.perf_counter()
+    if remaining > 0:
+        time.sleep(remaining)
 
 sota.speaker.disable()
