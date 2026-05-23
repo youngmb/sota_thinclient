@@ -15,14 +15,16 @@ class UDPStream:
         self._address = address
         self._port = None
         self._sock = None
+        self._debug_print = False
 
-    def start(self, port, data_queue):
+    def start(self, port, data_queue, debug_print: bool = False):
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._sock.settimeout(udp_timeout)  # half second timeout, to let the receiver be stopped gracefully
 
         self._thread = threading.Thread(target=self._run_loop, daemon=True)
 
         self._port = port
+        self._debug_print = debug_print
         self._data_queue = data_queue
         self._running = True
         self._thread.start()
@@ -47,9 +49,9 @@ class UDPStreamReceiver (UDPStream):
         self._priority_queue = []
         self._reorder_window = None
 
-    def start(self, port, data_queue):
+    def start(self, port, data_queue, debug_print: bool = False):
         self._reorder_window = reorder_window
-        super().start(port, data_queue)
+        super().start(port, data_queue, debug_print)
         self._sock.bind((self._address, port))
 
     def _run_loop(self):
@@ -124,20 +126,21 @@ class UDPStreamChunkedReceiver (UDPStream):
         self._image_age_max = image_age_max
         self._images = {}
 
-    def start(self, port, data_queue):
-        super().start(port, data_queue)
+    def start(self, port, data_queue, debug_print: bool = False):
+        super().start(port, data_queue, debug_print)
         self._sock.bind((self._address, port))
 
     def _run_loop(self):
-        # packet = 0
+        packet = 0
         while self._running:
             data = None
             try:
                 data, addr = self._sock.recvfrom(65536)
 
-                # packet = (packet + 1) % 1000
-                # if (packet % 10 == 0): print(".",end="")
-                # if packet == 0: print ()
+                if self._debug_print:
+                    packet = (packet + 1) % 1000
+                    if packet % 10 == 0: print(".",end="")
+                    if packet == 0: print ()
 
             except socket.timeout: # ignore, just block again. Wakes from timout
                 pass
@@ -150,14 +153,17 @@ class UDPStreamChunkedReceiver (UDPStream):
                 # packet_data: bytes object, first 4 bytes = seq_num
                 seq_num, piece_num, piece_count = struct.unpack_from(">ihh", data, 0)
                 if piece_count <= 0:
+                    if self._debug_print: print ("corrupted piece count")
                     continue
 
                 if not (0 <= piece_num < piece_count):  # ensure data is valid and sane
+                    if self._debug_print: print("corrupted piece num and or count")
                     continue
 
                 if self._expected_seq is None: self._expected_seq = seq_num  # initial seq_num init
 
                 if self.seq_ahead(self._expected_seq, seq_num):  # drop stale packets that show up.
+                    if self._debug_print: print("dropped unexpected packet for old frame")
                     continue
 
                 payload = memoryview(data)[self._packet_header_len:]  # zero-copy. 8 byte header
@@ -168,7 +174,7 @@ class UDPStreamChunkedReceiver (UDPStream):
                 # check if cur sequence is too far ahead, get rid of old
                 threshold = (self._expected_seq + self._image_age_max) % UDP_SEQUENCE_MAX
                 if self.seq_ahead(seq_num, threshold):
-                    print("pruning old incomplete images")
+                    print("pruning old incomplete images older than "+str(threshold))
                     self._expected_seq = (seq_num - self._image_age_max) % UDP_SEQUENCE_MAX  # move expected ahead
                     images = { k: v    #re-pack images, dropping old ones
                                for k, v in self._images.items()
@@ -180,6 +186,7 @@ class UDPStreamChunkedReceiver (UDPStream):
                     self._images[seq_num] = self.ImageBuffer(piece_count)
 
                 elif img.piece_count != piece_count:  # skip ahead of piece_count doesn't match - corrupted?
+                    if self._debug_print: print("corrupted frame, skipping ahead")
                     return
 
                 if seq_num not in self._images:
@@ -189,7 +196,7 @@ class UDPStreamChunkedReceiver (UDPStream):
 
                 img = self._images.get(self._expected_seq)
                 while img and img.is_complete():
-                    print("frame")
+                    print("complete frame received: "+str(self._expected_seq))
                     self._data_queue.put(self._images[self._expected_seq].compile(), block=True)
                     del self._images[self._expected_seq]
                     self._expected_seq = (self._expected_seq + 1) % UDP_SEQUENCE_MAX

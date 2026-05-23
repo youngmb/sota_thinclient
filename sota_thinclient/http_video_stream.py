@@ -16,10 +16,11 @@ class HTTPVideoStream:
 
     _CAPABILITIES_SUBPATH = "/capabilities"
 
-    def __init__(self, http_manager, end_point, udp_stream, error_print=True):
+    def __init__(self, http_manager, end_point, udp_stream, error_print=True, debug_print=False):
         self._http = http_manager
         self._end_point = end_point
         self._error_print = error_print
+        self._debug_print = debug_print
         self._state = {}  # will be the state. empty means we don't have it
         self._udp_stream = udp_stream
 
@@ -45,7 +46,10 @@ class HTTPVideoStream:
     def enable(self, data_udp_port, restart_if_enabled=True,
                request_image_size : str = None,
                request_image_format : str = None,
-               request_bitrate_kbps : int = None) -> bool:
+               request_bitrate_kbps : int = None,
+               debug_print: bool  = None) -> bool:
+
+        if debug_print: self._debug_print = debug_print
 
         ## Ask Sota to turn on the video streaming, pointed at us.
         payload = self.get_state()
@@ -67,7 +71,7 @@ class HTTPVideoStream:
                 if self._error_print: print(f"Error disabling existing stream before enabling endpoint '{self._end_point}'.")
                 return False
 
-        self._udp_stream.start(data_udp_port, self.data_queue)  #start UDP stream
+        self._udp_stream.start(data_udp_port, self.data_queue, debug_print=self._debug_print)  #start UDP stream
 
         # enabling needs to set the enabled flag, and provide a UDP port to send out to
         payload[self._FIELD_ENABLED] = True
