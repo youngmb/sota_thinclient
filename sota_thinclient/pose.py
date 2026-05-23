@@ -1,98 +1,180 @@
-class PoseManager:
-    _FIELD_SYSTEM_SERVOS_ENABLED = "servosEnabled"
-    _FIELD_SYSTEM_TALKING_LED_ENABLED = "talkingLEDEnabled"
-    _FIELD_SYSTEM_LIST_SERVO_CAPABILITIES = "servoCapabilities"
-    
-    _FIELD_POSE_SERVO_STATUS = "servoStatus"
-    _FIELD_POSE_LED_STATUS = "LEDStatus"
-    _FIELD_POSE_MOVE_MSEC = "move_msec"
-    _FIELD_POSE_COMMAND = "command"
+from dataclasses import dataclass, field
+from enum import Enum, StrEnum
 
-    _ENDPOINT_SYSTEM = "/system"
-    _ENDPOINT_JOINTSPACE = "/jointspace"
-    _ENDPOINT_WORLDSPACE = "/worldspace_skeleton"
+from sota_thinclient.http import HTTPConnector
 
+## Field constants for the JSON
+_FIELD_SYSTEM_SERVOS_ENABLED = "servosEnabled"
+_FIELD_SYSTEM_TALKING_LED_ENABLED = "talkingLEDEnabled"
+_FIELD_SYSTEM_LIST_SERVO_CAPABILITIES = "servoCapabilities"
+_FIELD_SYSTEM_RANGE_MIN = "range_min"
+_FIELD_SYSTEM_RANGE_MAX = "range_max"
+
+_FIELD_POSE_MOVE_MSEC = "move_msec"
+_FIELD_POSE_COMMAND = "command"
+
+## joint space
+_FIELD_POSE_SERVO_ID = "servo_id"
+_FIELD_POSE_RADIANS = "radians"
+_FIELD_POSE_SERVO_STATUS = "servoStatus"
+
+## world space
+_FIELD_POSE_ENDPOINT_STATUS = "endpointStatus"
+_FIELD_POSE_ENDPOINT_ID = "endpoint_id"
+_FIELD_POSE_POINT_DIRECTION = "pointDirection"
+_FIELD_POSE_POSITION = "position"
+_FIELD_POSE_YPR = "ypr"
+
+#LEDs
+_FIELD_POSE_LED_STATUS = "LEDStatus"
+_FIELD_POSE_LED_COLOR = "color"
+_FIELD_POSE_LED_ID= "led_id"
+
+
+_ENDPOINT_SYSTEM = "/system"
+_ENDPOINT_STATE = ""
+
+class ServoID(StrEnum):
+    BODY_YAW = "body_yaw"
+    HEAD_YAW = "head_yaw"
+    HEAD_ROLL = "head_roll"
+    RIGHT_ELBOW = "right_elbow"
+    LEFT_SHOULDER = "left_shoulder"
+    HEAD_PITCH = "head_pitch"
+    LEFT_ELBOW = "left_elbow"
+    RIGHT_SHOULDER = "right_shoulder"
+
+class EndpointID(StrEnum):
+    HEAD = "head"
+    RIGHT_HAND = "rightHand"
+    LEFT_HAND = "leftHand"
+
+class LedID(StrEnum):
+    POWER = "power",
+    LEFT_EYE = "leftEye",
+    RIGHT_EYE = "rightEye",
+    MOUTH = "mouth"
+
+class Command(StrEnum):
+    APPEND = "APPEND",
+    PREPEND = "PREPEND",
+    CLEAR_AND_ADD = "CLEAR_AND_ADD",
+    INTERRUPT_AND_PREPEND = "INTERRUPT_AND_PREPEND"
+
+
+@dataclass
+class EndpointPose:
+    point_direction: list[float] | None = None
+    position: list[float] | None = None
+    ypr: list[float] | None = None
+
+
+@dataclass
+class SotaState:
+    joint_space: dict[ServoID, float] = field(default_factory=dict)
+    world_space: dict[EndpointID, EndpointPose]  = field(default_factory=dict)
+    leds: dict[LedID, str]  = field(default_factory=dict)
+    servos_enabled: bool | None = None
+    talking_led_enabled: bool | None = None
+
+
+class PoseManager(HTTPConnector):
     def __init__(self, http_manager, end_point_path, error_print=True):
-        self._http = http_manager
-        self._end_point_path = end_point_path
-        self._error_print = error_print
-        self._state = {}  # will be the state. empty means we don't have it
-        
-    def _get_state(self, endpoint, use_cached=False) -> dict | None:  # cached gets local copy if we have one instead of getting new
-        if use_cached and self._state:
-            return self._state
+        super().__init__(http_manager, end_point_path, error_print)
+        self.SERVO_MIN = {}
+        self.SERVO_MAX = {}
+        self._servos_enabled = False
+        self._talking_led_enabled = False
 
-        self._state = self._http.get_as_json(self._end_point_path + endpoint)
-        return self._state
+    def _init_min_max(self, data):
+        capabilities = data[_FIELD_SYSTEM_LIST_SERVO_CAPABILITIES]
 
-    def _post_state(self, payload, endpoint) -> bool:
-        post_payload = self._http.post_dict_as_json(self._end_point_path + endpoint, payload)
-        if post_payload is None: return False
+        for entry in capabilities:
+            id = ServoID(entry[_FIELD_POSE_SERVO_ID])
+            self.SERVO_MIN[id] = entry[_FIELD_SYSTEM_RANGE_MIN]
+            self.SERVO_MAX[id] = entry[_FIELD_SYSTEM_RANGE_MAX]
 
-        self._state = post_payload  # save most recent state
-        return True
-    
-    def get_system_status(self) -> dict | None:
-        return self._get_state(self._ENDPOINT_SYSTEM)
+    def enable(self):
+        self._init_min_max( self.get_state(use_cached=True))
 
-    def get_servo_capabilities(self) -> dict | None:
-        state = self._get_state(self._ENDPOINT_SYSTEM)
-        if state is None: return None
+    def disable(self):
+        if self._servos_enabled: self.set_servos_enabled(False)
+        if self._talking_led_enabled: self.set_talking_led_enabled(False)
 
-        if self._FIELD_SYSTEM_LIST_SERVO_CAPABILITIES not in state:
-            if self._error_print: print(f"Field '{self._FIELD_SYSTEM_LIST_SERVO_CAPABILITIES}' not found for endpoint '{self._end_point_path}'.")
-            return None
+    def get_state(self, use_cached: bool = False) -> dict | None:
+        return self._get_state(_ENDPOINT_SYSTEM)
 
-        return state[self._FIELD_SYSTEM_LIST_SERVO_CAPABILITIES]
+    def set_servos_enabled(self, enabled: bool) -> bool:
+        self._servos_enabled = enabled
+        return self._set_capability_enabled(_ENDPOINT_SYSTEM, _FIELD_SYSTEM_SERVOS_ENABLED, enabled)
 
-    def set_servos_enabled(self, enable: bool) -> bool:
-        payload = self._get_state(self._ENDPOINT_SYSTEM)
-        if payload is None: return False
+    def set_talking_led_enabled(self, enabled: bool) -> bool:
+        self._talking_led_enabled = enabled
+        return self._set_capability_enabled(_ENDPOINT_SYSTEM, _FIELD_SYSTEM_TALKING_LED_ENABLED, enabled)
 
-        if self._FIELD_SYSTEM_SERVOS_ENABLED not in payload:
-            if self._error_print: print(f"Field '{self._FIELD_SYSTEM_SERVOS_ENABLED}' not found for enabling endpoint '{self._end_point_path}'.")
-            return False
+    def get_raw_state(self, use_cached=False) -> dict | None:
+        return self._get_state(_ENDPOINT_STATE, use_cached=use_cached)
 
-        if payload[self._FIELD_SYSTEM_SERVOS_ENABLED] == enable:  # already enabled or disabled
-            return True
+    def get_sota_state(self, use_cached: bool = False) -> SotaState:
+        (joint_space, world_space, leds) = self._parse_raw_state(self.get_raw_state(use_cached))
 
-        payload[self._FIELD_SYSTEM_SERVOS_ENABLED] = enable
-        return self._post_state(payload, self._ENDPOINT_SYSTEM)
-    
-    def set_talking_led_enabled(self, enable: bool) -> bool:
-        payload = self._get_state(self._ENDPOINT_SYSTEM)
-        if payload is None: return False
+        return SotaState(joint_space=joint_space,
+                         world_space=world_space,
+                         leds=leds,
+                         servos_enabled=self._servos_enabled,
+                         talking_led_enabled=self._talking_led_enabled)
 
-        if self._FIELD_SYSTEM_TALKING_LED_ENABLED not in payload:
-            if self._error_print: print(f"Field '{self._FIELD_SYSTEM_TALKING_LED_ENABLED}' not found for enabling endpoint '{self._end_point_path}'.")
-            return False
+    def set_sota_state(self, state: SotaState, msec, command: Command = Command.APPEND ):
+        payload = {_FIELD_POSE_MOVE_MSEC: msec, _FIELD_POSE_COMMAND: command.value }
 
-        if payload[self._FIELD_SYSTEM_TALKING_LED_ENABLED] == enable:  # already enabled or disabled
-            return True
+        if state.leds:
+            payload[_FIELD_POSE_LED_STATUS] = [
+                {_FIELD_POSE_LED_ID : led.value, _FIELD_POSE_LED_COLOR: color }
+                for led, color in state.leds.items()
+            ]
 
-        payload[self._FIELD_SYSTEM_TALKING_LED_ENABLED] = enable
-        return self._post_state(payload, self._ENDPOINT_SYSTEM)
-    
-    def get_pose_jointspace(self) -> dict | None:
-        return self._get_state(self._ENDPOINT_JOINTSPACE)
-    
-    def send_pose_jointspace(self, servo_positions: dict, led_positions: dict, move_msec: int, command: str = "APPEND"):
-        """
-        servo_positions: a dict of servo positions in radians, e.g., [{"servo_id": "R_SHOULDER", "radians": 0.5}, ...]
-        led_positions: a dict of LED colors with hex values, e.g., [{"led_id": "EYE_LEFT", "color": "#FF0000"}, ...]
-        move_msec: time in milliseconds for the movement to take
-        command: defines queue insertion behavior, defaults to APPEND. See thinserver PoseCommand enum for options.
-        """
-        payload = {}
-        payload[self._FIELD_POSE_COMMAND] = command
-        payload[self._FIELD_POSE_MOVE_MSEC] = move_msec
-        payload[self._FIELD_POSE_SERVO_STATUS] = servo_positions
-        payload[self._FIELD_POSE_LED_STATUS] = led_positions
-        return self._post_state(payload, self._ENDPOINT_JOINTSPACE)
-    
-    def get_pose_worldspace_skeleton(self) -> dict | None:
-        return self._get_state(self._ENDPOINT_WORLDSPACE)
-    
-    def send_pose_worldspace_skeleton(self, skeleton_positions: dict, led_positions: dict, move_msec: int, command: str = "APPEND"):
-        print('send_pose_worldspace_skeleton not implemented yet')
-        pass
+        if state.joint_space and state.world_space:  # both not empty
+            print ("Error: you specified both joint and world space, defaulting to world space")
+            state.joint_space = {}
+
+        if state.joint_space:
+            payload[_FIELD_POSE_SERVO_STATUS] = [
+                {_FIELD_POSE_SERVO_ID: servo_id.value, _FIELD_POSE_RADIANS: radians}
+                for servo_id, radians in state.joint_space.items()
+            ]
+
+        #only position is implemented for IK
+        if state.world_space:
+            payload[_FIELD_POSE_ENDPOINT_STATUS] = [
+                {_FIELD_POSE_ENDPOINT_ID: item.value,
+                 _FIELD_POSE_POSITION: pose.position
+                 }
+                for item, pose in state.world_space.items()
+            ]
+
+        return self._post_state(payload, _ENDPOINT_STATE)
+
+
+    @staticmethod
+    def _parse_raw_state(raw_state):
+        joint_space = {}
+        world_space = {}
+        leds = {}
+
+        for entry in raw_state[_FIELD_POSE_SERVO_STATUS]:
+            servo_id = ServoID(entry[_FIELD_POSE_SERVO_ID])
+            joint_space[servo_id] = entry[_FIELD_POSE_RADIANS]
+
+        for entry in raw_state[_FIELD_POSE_ENDPOINT_STATUS]:
+            servo_id = EndpointID(entry[_FIELD_POSE_ENDPOINT_ID])
+            world_space[servo_id] = EndpointPose (
+                point_direction=entry[_FIELD_POSE_POINT_DIRECTION],
+                position=entry[_FIELD_POSE_POSITION],
+                ypr=entry[_FIELD_POSE_YPR]
+            )
+
+        for entry in raw_state[_FIELD_POSE_LED_STATUS]:
+            led_id = LedID(entry[_FIELD_POSE_LED_ID])
+            leds[led_id] = entry[_FIELD_POSE_LED_COLOR]
+
+        return joint_space, world_space, leds

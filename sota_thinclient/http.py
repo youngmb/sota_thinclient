@@ -43,3 +43,42 @@ class HTTPManager:
     def _print_response(r):
         print(f"Status: {r.status_code}", end=None)
         print(r.json())
+
+
+class HTTPConnector:   #an abstract base class that holds basic functions for other clases to use to connect to the manager
+
+    def __init__(self, http_manager, end_point_path, error_print=True):
+        self._http = http_manager
+        self._end_point_path = end_point_path
+        self._error_print = error_print
+        self._state_cached = {}  # will be the state. empty means we don't have it
+
+    def _get_state(self, endpoint,
+                   use_cached=False) -> dict | None:  # cached gets local copy if we have one instead of getting new
+        if use_cached and self._state_cached:
+            return self._state_cached
+
+        self._state_cached = self._http.get_as_json(self._end_point_path + endpoint)
+        return self._state_cached
+
+    def _post_state(self, payload, endpoint) -> bool:
+        post_payload = self._http.post_dict_as_json(self._end_point_path + endpoint, payload)
+        if post_payload is None: return False
+
+        self._state_cached = post_payload  # save most recent state
+        return True
+
+    def _set_capability_enabled(self, endpoint, field, enabled: bool) -> bool:
+        payload = self._get_state(endpoint)    #we need this to check if its already enabled
+        if payload is None: return False
+
+        field_data = payload.get(field)
+        if field_data is None:
+            if self._error_print: print(f"Field '{field}' not found for enabling feature, using endpoint '{endpoint}'.")
+            return False
+
+        if field_data == enabled:  # already enabled or disabled
+            return True
+
+        payload[field] = enabled
+        return self._post_state(payload, endpoint)
