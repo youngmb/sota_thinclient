@@ -106,11 +106,11 @@ class PoseManager(HTTPConnector):
 
     def set_servos_enabled(self, enabled: bool) -> bool:
         self._servos_enabled = enabled
-        return self._set_capability_enabled(_ENDPOINT_SYSTEM, _FIELD_SYSTEM_SERVOS_ENABLED, enabled)
+        return self._set_capability_enabled(endpoint=_ENDPOINT_SYSTEM, field=_FIELD_SYSTEM_SERVOS_ENABLED, enabled=enabled)
 
     def set_talking_led_enabled(self, enabled: bool) -> bool:
         self._talking_led_enabled = enabled
-        return self._set_capability_enabled(_ENDPOINT_SYSTEM, _FIELD_SYSTEM_TALKING_LED_ENABLED, enabled)
+        return self._set_capability_enabled(endpoint=_ENDPOINT_SYSTEM, field=_FIELD_SYSTEM_TALKING_LED_ENABLED, enabled=enabled)
 
     def get_raw_state(self, use_cached=False) -> dict | None:
         return self._get_state(_ENDPOINT_STATE, use_cached=use_cached)
