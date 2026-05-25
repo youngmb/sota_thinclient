@@ -15,7 +15,6 @@ class HTTPAudioStream(HTTPConnector):
     def __init__(self, http_manager, end_point, udp_stream, error_print=True):
         super().__init__(http_manager, end_point, error_print)
         self._udp_stream = udp_stream
-
         self.data_queue = queue.Queue(maxsize=100)  # Buffer for incoming packets
 
     def get_state(self, use_cached=False) -> dict | None:  # cached gets local copy if we have one instead of getting new
