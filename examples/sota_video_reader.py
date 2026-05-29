@@ -2,7 +2,6 @@ import io
 import queue
 import pygame
 from PIL import Image
-import time
 from sota_thinclient import ConnectionManager
 
 # SOTA_IP = "192.168.0.23"
