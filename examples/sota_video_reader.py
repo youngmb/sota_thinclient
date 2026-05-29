@@ -5,13 +5,14 @@ from PIL import Image
 import time
 from sota_thinclient import ConnectionManager
 
-SOTA_IP = "192.168.0.23"
-# SOTA_IP = "10.151.63.71"
+# SOTA_IP = "192.168.0.23"
+SOTA_IP = "10.151.63.71"
 HTTP_PORT = "8080"
 UDP_PORT = 52003
 
 sota = ConnectionManager(SOTA_IP, HTTP_PORT)
-sota.video.enable(data_udp_port=UDP_PORT, request_image_size="QVGA", request_bitrate_kbps="6000", debug_print=False)
+sota.video.enable(data_udp_port=UDP_PORT, request_image_size="VGA", request_bitrate_kbps="8000", debug_print=True)
+
 print ("Video stream enabled")
 
 video_state = sota.video.get_state(use_cached=True)

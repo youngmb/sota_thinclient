@@ -68,7 +68,6 @@ class EndpointPose:
     position: list[float] | None = None
     ypr: list[float] | None = None
 
-
 @dataclass
 class SotaState:
     joint_space: dict[ServoID, float] = field(default_factory=dict)
@@ -124,7 +123,7 @@ class PoseManager(HTTPConnector):
                          servos_enabled=self._servos_enabled,
                          talking_led_enabled=self._talking_led_enabled)
 
-    def set_sota_state(self, state: SotaState, msec, command: Command = Command.APPEND ):
+    def send_command(self, state: SotaState, msec, command: Command = Command.APPEND):
         payload = {_FIELD_POSE_MOVE_MSEC: msec, _FIELD_POSE_COMMAND: command.value }
 
         if state.leds:

@@ -45,7 +45,7 @@ print("For example, to set the left eye to blue")
 newState.leds[LedID.LEFT_EYE] = "#0000FF"
 
 print("Setting a state needs a duration in milliseconds")
-sota.pose.set_sota_state(newState, msec=1000)
+sota.pose.send_command(newState, msec=1000)
 input()
 
 print("\nServos need to be \"enabled\" before you can move them. Otherwise the robot can be manually manipulated.")
@@ -55,7 +55,7 @@ print("You can set individual motors to desired positions.")
 newState = SotaState() # start over
 newState.joint_space[ServoID.RIGHT_SHOULDER] = -1
 newState.joint_space[ServoID.LEFT_SHOULDER] = +1
-sota.pose.set_sota_state(newState, msec=1000)
+sota.pose.send_command(newState, msec=1000)
 input()
 
 print("You can use IK to put the hands where you want them. Currently only hand position tested.")
@@ -63,34 +63,34 @@ print("You can pause the program here and check that the hands are at the given 
 newState = SotaState() # start over
 newState.world_space[EndpointID.LEFT_HAND] = EndpointPose(position = [-0.04, -0.09, 0.1]) # all in metres
 newState.world_space[EndpointID.RIGHT_HAND] = EndpointPose(position =  [-0.1, -.01, 0.13])
-sota.pose.set_sota_state(newState, msec=1000)
+sota.pose.send_command(newState, msec=1000)
 input()
 
 print("You can cue a series of commands and they'll just go in order.")
 newState = SotaState() # start over
 newState.joint_space[ServoID.RIGHT_SHOULDER] = 0
 newState.joint_space[ServoID.LEFT_SHOULDER] = 0
-sota.pose.set_sota_state(newState, msec=1000)
+sota.pose.send_command(newState, msec=1000)
 
 newState = SotaState()
 newState.joint_space[ServoID.RIGHT_SHOULDER] = 1
 newState.joint_space[ServoID.LEFT_SHOULDER] = -1
-sota.pose.set_sota_state(newState, msec=300)
+sota.pose.send_command(newState, msec=300)
 
 newState = SotaState()
 newState.joint_space[ServoID.RIGHT_SHOULDER] = -1
 newState.joint_space[ServoID.LEFT_SHOULDER] = 1
-sota.pose.set_sota_state(newState, msec=300)
+sota.pose.send_command(newState, msec=300)
 
 newState = SotaState()
 newState.joint_space[ServoID.RIGHT_SHOULDER] = 1
 newState.joint_space[ServoID.LEFT_SHOULDER] = -1
-sota.pose.set_sota_state(newState, msec=300)
+sota.pose.send_command(newState, msec=300)
 
 newState = SotaState()
 newState.joint_space[ServoID.RIGHT_SHOULDER] = 0
 newState.joint_space[ServoID.LEFT_SHOULDER] = 0
-sota.pose.set_sota_state(newState, msec=1000)
+sota.pose.send_command(newState, msec=1000)
 
 input()
 
