@@ -1,10 +1,12 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=61.0", "wheel", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
 
 [project]
 name = "sota_thinclient"
-version = "0.0.1"
+dynamic=["version"]
 description = "Python connector to the SOTA robot thinserver"
 readme = "README.md"
 requires-python = ">=3.10"
