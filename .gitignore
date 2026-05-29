@@ -13,3 +13,5 @@ build/
 **/savedWorkspaces/*.json
 .idea/
 sota_thinclient.egg-info/
+sota_thinclient/_version.py
+
