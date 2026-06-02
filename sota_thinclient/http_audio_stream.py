@@ -21,7 +21,7 @@ class HTTPAudioStream(HTTPConnector):
         return self._get_state()
 
     def enable(self, data_udp_port, restart_if_enabled=True,
-               request_buffer_size : int =None) -> bool:
+               request_buffer_size : int = None) -> bool:
 
         restart_if_enabled = restart_if_enabled or request_buffer_size
 

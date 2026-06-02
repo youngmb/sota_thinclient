@@ -99,9 +99,7 @@ class UDPStreamReceiver (UDPStream):
             if self._priority_queue: (seq_num, payload) = self._priority_queue[0]
             self._expected_seq = (self._expected_seq + 1) % UDP_SEQUENCE_MAX
 
-
 class UDPStreamChunkedReceiver (UDPStream):
-
     _packet_header_len = 8   # 8 bytes for 4 byte int+ 2byte + 2 byte
 
     class ImageBuffer:### Helper class to manage image buffers that arrive piecewise
@@ -228,7 +226,7 @@ class UDPStreamSender(UDPStream):
                 self._packet_seq = (self._packet_seq + 1) % UDP_SEQUENCE_MAX
 
             except Empty:
-                pass   # just do nothing and try again, was timeout
+                continue   # just do nothing and try again, was timeout
 
             except Exception as e:   #??? if we should handle better, fix
                 print(f"UDPStreamSender error: {e}")
