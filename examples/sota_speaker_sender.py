@@ -6,8 +6,8 @@ from scipy.signal import resample #for audio resampling -- install for example o
 
 from sota_thinclient import ConnectionManager
 
-# SOTA_IP = "192.168.0.23"
-SOTA_IP = "10.151.63.71"
+SOTA_IP = "192.168.0.23"
+# SOTA_IP = "10.151.63.71"
 HTTP_PORT = "8080"
 UDP_PORT = 52002
 WAV_FILE = "sample.wav"
