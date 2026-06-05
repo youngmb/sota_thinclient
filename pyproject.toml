@@ -17,7 +17,8 @@ authors = [
 license = { file="LICENSE" }
 dependencies = [
 #    "sounddevice"  # only needed for test programs
-    "requests"
+    "requests",
+    "numpy"
 ]
 
 [project.optional-dependencies]
@@ -26,6 +27,5 @@ test = [
     "pygame",
     "pillow",
     "sounddevice",
-    "numpy",
     "scipy"
 ]
