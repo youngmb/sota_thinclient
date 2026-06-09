@@ -9,6 +9,7 @@ _FIELD_VOLUME = "volume"
 _FIELD_PORT = "streamPort"
 _FIELD_IP = "streamIP"
 _FIELD_BUFFERSIZE = "bufferSize"
+_FIELD_SAMPLERATE = "sampleRate"
 
 class HTTPAudioStream(HTTPConnector):
 

@@ -1,5 +1,7 @@
 import time
 import wave
+from queue import Full
+
 import numpy as np
 
 from sota_thinclient import ConnectionManager
@@ -33,10 +35,10 @@ with wave.open(WAV_FILE, 'rb') as wf:
         resampled_data += resampler.resample_chunk(wav_data[i:i+chunk_size])
 
 ##crudely simulate streaming audio
-buffer_size = speaker_state['bufferSize']
+buffer_size = int(speaker_state['bufferSize'])
 frame_size = (speaker_state['channels'] * (speaker_state['sampleSize_bits']//8))
 buffer_s = (buffer_size / frame_size) / speaker_state['sampleRate']
-print(f"Buffer of {speaker_state['bufferSize']} is {buffer_s:.3f} s")
+print(f"Buffer of {buffer_size} is {buffer_s:.3f} s")
 print(sota.speaker.get_state())
 
 initial_buffer = 10  # send packets without delay to get the buffer warmed up
@@ -47,7 +49,11 @@ for i in range(0, len(resampled_data), buffer_size):
     remainder = len(chunk) % buffer_size
     if remainder != 0:
         chunk = chunk + bytes(buffer_size - remainder)
-    sota.speaker.data_queue.put(chunk, block=False)
+
+    try:
+        sota.speaker.data_queue.put(chunk, block=False)
+    except Full:
+        pass
     # print(len(chunk))
 
     next_time += buffer_s

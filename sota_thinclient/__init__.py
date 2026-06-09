@@ -8,3 +8,4 @@ UDP_SEQUENCE_MAX = 1000000   # sequence numbering rollover point. must match the
 
 # simplify the main imports
 from .connection_manager import ConnectionManager
+from .http_audio_stream import StreamingMonoResampler

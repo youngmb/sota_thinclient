@@ -8,6 +8,9 @@ from queue import Empty
 from . import udp_timeout, reorder_window, UDP_SEQUENCE_MAX, image_age_max
 
 class UDPStream:
+
+    _MAX_SEND_PACKET_BYTES = 1300   #expect MTU of 1500, leave lots of room for overhead, etc.
+
     def __init__(self, address):
         self._running = False
         self._thread = None
@@ -219,14 +222,22 @@ class UDPStreamSender(UDPStream):
         while self._running:
             try:
                 data = self._data_queue.get(block=True, timeout=0.2)  # block until data is available, timeout to enable shutdown
-                header = struct.pack(">i", self._packet_seq)  # 4-byte signed int, big-endian
-                data = header + data
-                # print(f"sending: {self._address}, {self._port}. Data {len(data)}")
-                self._sock.sendto(data, (self._address, self._port))
-                self._packet_seq = (self._packet_seq + 1) % UDP_SEQUENCE_MAX
+                # self._send_packet(data)
+                for i in range(0, len(data), self._MAX_SEND_PACKET_BYTES):
+                    chunk_size = min(len(data)-i, self._MAX_SEND_PACKET_BYTES)
+                    chunk = data[i:i+chunk_size]
+                    self._send_packet(chunk)
 
             except Empty:
                 continue   # just do nothing and try again, was timeout
 
             except Exception as e:   #??? if we should handle better, fix
                 print(f"UDPStreamSender error: {e}")
+
+
+    def _send_packet(self, data):
+        header = struct.pack(">i", self._packet_seq)  # 4-byte signed int, big-endian
+        data = header + data
+        # print(f"sending: {self._address}, {self._port}. Data {len(data)}")
+        self._sock.sendto(data, (self._address, self._port))
+        self._packet_seq = (self._packet_seq + 1) % UDP_SEQUENCE_MAX
