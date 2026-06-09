@@ -1,6 +1,5 @@
 import queue
 import numpy as np
-from scipy import signal
 
 from sota_thinclient.http import HTTPConnector
 
